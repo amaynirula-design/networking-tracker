@@ -284,7 +284,55 @@ Items 6–9 are the ones worth reading closely: they prove that the security and
 ### Test output
 
 ```text
-<!-- TODO: paste the output of `npm test` here -->
+$ npm test
+
+ ✓ tests/query.test.ts > buildContactQuery — defaults > falls back to newest-first when given nothing 4ms
+ ✓ tests/query.test.ts > buildContactQuery — defaults > ignores an unknown sort field instead of trusting it 0ms
+ ✓ tests/query.test.ts > buildContactQuery — defaults > ignores an unknown priority filter 0ms
+ ✓ tests/query.test.ts > buildContactQuery — defaults > treats any direction other than asc as desc 0ms
+ ✓ tests/query.test.ts > buildContactQuery — sorting > maps priority onto the generated rank column, not the text column 0ms
+ ✓ tests/query.test.ts > buildContactQuery — sorting > passes through plain columns unchanged 0ms
+ ✓ tests/query.test.ts > buildContactQuery — search > produces no filter for a blank search 0ms
+ ✓ tests/query.test.ts > buildContactQuery — search > searches name, company, role and met_at with wildcards 0ms
+ ✓ tests/query.test.ts > buildContactQuery — search > trims the search term 0ms
+ ✓ tests/query.test.ts > escapeFilterValue — PostgREST grammar safety > quotes commas so they cannot split a filter into extra clauses 0ms
+ ✓ tests/query.test.ts > escapeFilterValue — PostgREST grammar safety > escapes embedded double quotes and backslashes 0ms
+ ✓ tests/query.test.ts > escapeFilterValue — PostgREST grammar safety > keeps a crafted term inside a single clause 1ms
+ ✓ tests/query.test.ts > isFiltered > is false for the default view 0ms
+ ✓ tests/query.test.ts > isFiltered > is true once a search or priority filter is applied 0ms
+ ✓ tests/schema.test.ts > parseContactInput — required fields > accepts a fully populated contact 2ms
+ ✓ tests/schema.test.ts > parseContactInput — required fields > rejects an empty name with a clear message 0ms
+ ✓ tests/schema.test.ts > parseContactInput — required fields > rejects a whitespace-only name 0ms
+ ✓ tests/schema.test.ts > parseContactInput — required fields > rejects a missing name 0ms
+ ✓ tests/schema.test.ts > parseContactInput — required fields > trims surrounding whitespace from the name 0ms
+ ✓ tests/schema.test.ts > parseContactInput — required fields > rejects a name longer than the column limit 0ms
+ ✓ tests/schema.test.ts > parseContactInput — priority > accepts the valid priority high 0ms
+ ✓ tests/schema.test.ts > parseContactInput — priority > accepts the valid priority medium 0ms
+ ✓ tests/schema.test.ts > parseContactInput — priority > accepts the valid priority low 0ms
+ ✓ tests/schema.test.ts > parseContactInput — priority > rejects the invalid priority urgent 0ms
+ ✓ tests/schema.test.ts > parseContactInput — priority > rejects the invalid priority HIGH 0ms
+ ✓ tests/schema.test.ts > parseContactInput — priority > rejects the invalid priority High 0ms
+ ✓ tests/schema.test.ts > parseContactInput — priority > rejects the invalid priority  0ms
+ ✓ tests/schema.test.ts > parseContactInput — priority > rejects the invalid priority null 0ms
+ ✓ tests/schema.test.ts > parseContactInput — priority > rejects the invalid priority undefined 0ms
+ ✓ tests/schema.test.ts > parseContactInput — priority > rejects the invalid priority 1 0ms
+ ✓ tests/schema.test.ts > parseContactInput — priority > rejects the invalid priority medium  0ms
+ ✓ tests/schema.test.ts > parseContactInput — priority > does not silently coerce an unknown priority to a default 0ms
+ ✓ tests/schema.test.ts > parseContactInput — optional fields > stores blank optional fields as null rather than empty strings 0ms
+ ✓ tests/schema.test.ts > parseContactInput — optional fields > reports every invalid field at once 0ms
+ ✓ tests/schema.test.ts > isPriority > narrows only the three accepted values 0ms
+ ↓ tests/rls.integration.test.ts > RLS — User A vs User B > defaults user_id to the caller's own auth.user_id()
+ ↓ tests/rls.integration.test.ts > RLS — User A vs User B > does not leak the row into an unfiltered list for the other user
+ ↓ tests/rls.integration.test.ts > RLS — User A vs User B > returns nothing when the other user asks for the row by id
+ ↓ tests/rls.integration.test.ts > RLS — User A vs User B > refuses to update another user's row
+ ↓ tests/rls.integration.test.ts > RLS — User A vs User B > refuses to delete another user's row
+ ↓ tests/rls.integration.test.ts > RLS — User A vs User B > refuses an insert that claims another user as the owner
+ ↓ tests/rls.integration.test.ts > RLS — User A vs User B > refuses to hand your own row to someone else
+ ↓ tests/rls.integration.test.ts > Database-level validation > rejects an invalid priority even when the client is bypassed
+ ↓ tests/rls.integration.test.ts > Database-level validation > rejects a blank name even when the client is bypassed
+ ↓ tests/rls.integration.test.ts > Anonymous access > refuses to read contacts without a token
+ Test Files  2 passed | 1 skipped (3)
+      Tests  35 passed | 10 skipped (45)
 ```
 
 ## Deployment

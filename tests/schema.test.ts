@@ -65,7 +65,7 @@ describe('parseContactInput — priority', () => {
   });
 
   it.each(['urgent', 'HIGH', 'High', '', null, undefined, 1, 'medium '])(
-    'rejects the invalid priority %p',
+    'rejects the invalid priority %s',
     (priority) => {
       const result = parseContactInput({ ...valid, priority });
       expect(result.success).toBe(false);

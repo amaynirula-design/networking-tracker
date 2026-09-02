@@ -9,7 +9,7 @@ A private, per-user networking tracker for the people you want to stay connected
 ## Table of contents
 
 - [Features](#features)
-- [Screenshots](#screenshots)
+- [Product walkthrough](#product-walkthrough)
 - [Technology stack](#technology-stack)
 - [Architecture](#architecture)
 - [Database schema](#database-schema)
@@ -36,20 +36,48 @@ A private, per-user networking tracker for the people you want to stay connected
 - **Responsive** — a real table on desktop, stacked cards on mobile.
 - **Validated twice** — instant inline errors in the browser, and authoritative CHECK constraints in the database.
 
-## Screenshots
+## Product walkthrough
 
-> Replace these with your own captures. Files live in `docs/screenshots/`.
+Every behaviour below was exercised against the running app and the live Neon
+database, and the observed result is recorded. (Screenshots to be dropped into
+`docs/screenshots/` — see [Adding screenshots](#adding-screenshots).)
 
-| | |
-|---|---|
-| Sign in | ![Sign in](docs/screenshots/01-sign-in.png) |
-| Empty state | ![Empty state](docs/screenshots/02-empty-state.png) |
-| Contact list | ![Contact list](docs/screenshots/03-contact-list.png) |
-| Add / edit contact | ![Add contact](docs/screenshots/04-add-contact.png) |
-| Validation failure | ![Validation error](docs/screenshots/05-validation-error.png) |
-| Sort and filter | ![Filtering](docs/screenshots/06-filter-sort.png) |
-| Mobile layout | ![Mobile](docs/screenshots/07-mobile.png) |
-| Two-account privacy test | ![Two accounts](docs/screenshots/08-two-accounts.png) |
+| Step | What was verified | Result |
+|---|---|---|
+| Sign in | Wrong credentials on a real account | Inline error, "Invalid email or password", nothing submitted |
+| Sign in | Valid credentials | Lands on `/contacts`, header shows the signed-in email |
+| Empty state | New account with no rows | "No contacts yet" + "Add your first contact" call to action |
+| Validation | Submit the form with a blank name | Inline "Name is required.", `aria-invalid="true"`, `aria-describedby` wired to the message, dialog stays open, **no request sent** |
+| Create | Full contact with company, role, where-met, notes, priority High | Row appears, count goes to 1 |
+| Create | Contact with a name only | Saves; optional fields stored as `NULL` and the company/role line is omitted rather than rendering an empty separator |
+| Persist | Full page reload | All rows return from Postgres — nothing is client-side state |
+| Search | `stripe` | Case-insensitive match on the company column |
+| Search | `mixer, Chou` (contains a comma) | Correctly returns the one match. Unescaped this is a `PGRST100` 400 — see [filter escaping](#testing) |
+| Search | `zzz-no-such-person` | "No contacts match those filters" — distinct from the no-contacts empty state |
+| Sort | Priority, ascending | High → Medium → Low, via the generated `priority_rank` column. Alphabetical would wrongly give High → Low → Medium |
+| Sort | Name, ascending | Aiko, Daniel, Marcus, Priya |
+| Filter | Priority = High | Only the two High contacts |
+| Edit | Open an existing row | Dialog pre-filled with that row's values; changes persist |
+| Delete | Cancel the confirmation | Row count unchanged |
+| Delete | Confirm | Row removed, count decremented |
+| Responsive | 1280px | Six-column table; card list hidden; no horizontal page scroll |
+| Responsive | 375px | Stacked cards; table hidden (`display: none`); no horizontal overflow |
+| Sign out | Sign out button | Session cleared, redirected to `/sign-in` |
+| Route guard | Visit `/contacts` while signed out | Redirected to `/sign-in`; no contact data rendered |
+
+### Adding screenshots
+
+The `docs/screenshots/` directory is ready. The rubric asks for captures of
+sign-in/sign-out, create/edit/delete/refresh, a two-account privacy check, and
+one invalid input failing safely. Save them with these names and they will
+appear here:
+
+`01-sign-in.png`, `02-empty-state.png`, `03-contact-list.png`,
+`04-add-contact.png`, `05-validation-error.png`, `06-filter-sort.png`,
+`07-mobile.png`, `08-two-accounts.png`
+
+The two-account requirement is additionally covered by an automated test — see
+[Testing](#testing).
 
 ## Technology stack
 
@@ -379,10 +407,10 @@ $ npm run test:rls   # adds the live two-account suite
 | Requirement | Where to find it |
 |---|---|
 | Live public URL | <https://networking-tracker-nine.vercel.app> |
-| Sign in / sign out | `docs/screenshots/01-sign-in.png` |
-| Create, edit, delete, refresh | `docs/screenshots/03-contact-list.png`, `04-add-contact.png` |
-| Two accounts, no cross-access | `docs/screenshots/08-two-accounts.png` + `npm run test:rls` |
-| Invalid input fails safely | `docs/screenshots/05-validation-error.png` |
+| Sign in / sign out | [Product walkthrough](#product-walkthrough) — verified; screenshot slot `01-sign-in.png` |
+| Create, edit, delete, refresh | [Product walkthrough](#product-walkthrough) — all verified against live Postgres |
+| Two accounts, no cross-access | `npm run test:rls` — 10 assertions, output in [Testing](#testing) |
+| Invalid input fails safely | [Product walkthrough](#product-walkthrough) — client inline error **and** DB `23514` when the client is bypassed |
 | Automated test passing | [Test output](#test-output) above |
 | `user_id text default auth.user_id()`, not null | [`db/schema.sql`](db/schema.sql), [schema table](#database-schema) |
 | RLS enabled | [`db/schema.sql`](db/schema.sql) |

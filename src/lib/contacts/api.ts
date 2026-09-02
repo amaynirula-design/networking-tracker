@@ -51,6 +51,16 @@ function toContactError(error: PostgrestErrorish, fallback: string): ContactErro
         name: 'Name must be 120 characters or fewer.',
       });
     }
+    if (detail.includes('contacts_met_on_range')) {
+      return new ContactError('That date met is out of range.', {
+        met_on: 'Enter a date between 1900 and 2100.',
+      });
+    }
+    if (detail.includes('contacts_follow_up_on_range')) {
+      return new ContactError('That follow-up date is out of range.', {
+        follow_up_on: 'Enter a date between 1900 and 2100.',
+      });
+    }
     return new ContactError('That value is not allowed by the database.');
   }
 
@@ -59,6 +69,11 @@ function toContactError(error: PostgrestErrorish, fallback: string): ContactErro
     return new ContactError(
       'You can only create or edit contacts that belong to you.',
     );
+  }
+
+  // 22007/22008 = invalid date value reached Postgres despite client validation.
+  if (code === '22007' || code === '22008') {
+    return new ContactError('Please enter dates as a valid calendar date.');
   }
 
   // 23502 = not_null_violation: user_id was NULL, i.e. no valid session.
@@ -75,12 +90,39 @@ export async function listContacts(query: ResolvedQuery): Promise<Contact[]> {
 
   if (query.orFilter) request = request.or(query.orFilter);
   if (query.priority) request = request.eq('priority', query.priority);
+  if (query.dueOnOrBefore) {
+    // Due = has a follow-up date, and it is today or already past.
+    request = request
+      .not('follow_up_on', 'is', null)
+      .lte('follow_up_on', query.dueOnOrBefore);
+  }
 
   const { data, error } = await request
-    .order(query.orderColumn, { ascending: query.ascending })
+    .order(query.orderColumn, {
+      ascending: query.ascending,
+      nullsFirst: query.nullsFirst,
+    })
     .order('created_at', { ascending: false });
 
   if (error) throw toContactError(error, 'Could not load your contacts.');
+  return (data ?? []) as Contact[];
+}
+
+/**
+ * Contacts whose follow-up is today or already past.
+ *
+ * Deliberately a separate query from the main list: the reminder count must
+ * reflect everything you owe, not whatever the current search happens to match.
+ */
+export async function listDueFollowUps(today: string): Promise<Contact[]> {
+  const { data, error } = await neon
+    .from('contacts')
+    .select('*')
+    .not('follow_up_on', 'is', null)
+    .lte('follow_up_on', today)
+    .order('follow_up_on', { ascending: true });
+
+  if (error) throw toContactError(error, 'Could not load your follow-ups.');
   return (data ?? []) as Contact[];
 }
 

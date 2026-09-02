@@ -89,3 +89,47 @@ describe('isFiltered', () => {
     expect(isFiltered(buildContactQuery({ priority: 'high' }))).toBe(true);
   });
 });
+
+
+describe('buildContactQuery — date sorting', () => {
+  it('accepts the date columns as sort fields', () => {
+    expect(buildContactQuery({ sort: 'met_on' }).orderColumn).toBe('met_on');
+    expect(buildContactQuery({ sort: 'follow_up_on' }).orderColumn).toBe(
+      'follow_up_on',
+    );
+  });
+
+  it('keeps empty dates at the bottom in both directions', () => {
+    // Postgres puts NULLs first when sorting descending. For columns that are
+    // often blank that buries the rows the user actually wants to see, so these
+    // always sort nulls last.
+    expect(buildContactQuery({ sort: 'follow_up_on', direction: 'asc' }).nullsFirst).toBe(false);
+    expect(buildContactQuery({ sort: 'follow_up_on', direction: 'desc' }).nullsFirst).toBe(false);
+    expect(buildContactQuery({ sort: 'met_on', direction: 'desc' }).nullsFirst).toBe(false);
+  });
+
+  it('leaves never-null columns to the database default ordering', () => {
+    expect(buildContactQuery({ sort: 'created_at', direction: 'desc' }).nullsFirst).toBe(true);
+    expect(buildContactQuery({ sort: 'created_at', direction: 'asc' }).nullsFirst).toBe(false);
+  });
+});
+
+describe('buildContactQuery — due follow-ups', () => {
+  it('is inactive by default', () => {
+    expect(buildContactQuery().dueOnOrBefore).toBeNull();
+  });
+
+  it('filters to follow-ups on or before today', () => {
+    const q = buildContactQuery({ dueOnly: true, today: '2026-09-02' });
+    expect(q.dueOnOrBefore).toBe('2026-09-02');
+  });
+
+  it('ignores the flag when no date is supplied, rather than guessing one', () => {
+    expect(buildContactQuery({ dueOnly: true }).dueOnOrBefore).toBeNull();
+    expect(buildContactQuery({ dueOnly: true, today: '' }).dueOnOrBefore).toBeNull();
+  });
+
+  it('counts as a filter for the empty-state copy', () => {
+    expect(isFiltered(buildContactQuery({ dueOnly: true, today: '2026-09-02' }))).toBe(true);
+  });
+});

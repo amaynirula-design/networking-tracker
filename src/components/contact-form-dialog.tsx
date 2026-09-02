@@ -23,6 +23,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { ContactError } from '@/lib/contacts/api';
 import {
+  DATE_RANGE,
   LIMITS,
   PRIORITIES,
   PRIORITY_LABELS,
@@ -37,6 +38,8 @@ type Draft = {
   company: string;
   role: string;
   met_at: string;
+  met_on: string;
+  follow_up_on: string;
   notes: string;
   priority: string;
 };
@@ -46,6 +49,8 @@ const BLANK: Draft = {
   company: '',
   role: '',
   met_at: '',
+  met_on: '',
+  follow_up_on: '',
   notes: '',
   priority: 'medium',
 };
@@ -57,6 +62,8 @@ function toDraft(contact: Contact | null): Draft {
     company: contact.company ?? '',
     role: contact.role ?? '',
     met_at: contact.met_at ?? '',
+    met_on: contact.met_on ?? '',
+    follow_up_on: contact.follow_up_on ?? '',
     notes: contact.notes ?? '',
     priority: contact.priority,
   };
@@ -209,6 +216,49 @@ export function ContactFormDialog({
                 {errors.met_at}
               </p>
             )}
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="contact-met-on">Date met</Label>
+              <Input
+                id="contact-met-on"
+                type="date"
+                max={DATE_RANGE.max}
+                min={DATE_RANGE.min}
+                value={draft.met_on}
+                aria-invalid={Boolean(errors.met_on)}
+                onChange={(e) => set('met_on', e.target.value)}
+              />
+              {errors.met_on && (
+                <p role="alert" className="text-destructive text-sm">
+                  {errors.met_on}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="contact-follow-up-on">Follow up on</Label>
+              <Input
+                id="contact-follow-up-on"
+                type="date"
+                max={DATE_RANGE.max}
+                min={DATE_RANGE.min}
+                value={draft.follow_up_on}
+                aria-invalid={Boolean(errors.follow_up_on)}
+                aria-describedby="follow-up-hint"
+                onChange={(e) => set('follow_up_on', e.target.value)}
+              />
+              {errors.follow_up_on ? (
+                <p role="alert" className="text-destructive text-sm">
+                  {errors.follow_up_on}
+                </p>
+              ) : (
+                <p id="follow-up-hint" className="text-muted-foreground text-xs">
+                  You&apos;ll be reminded on the day.
+                </p>
+              )}
+            </div>
           </div>
 
           <div className="space-y-2">

@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { BrandWordmark } from '@/components/brand';
 import { ContactAvatar } from '@/components/contact-avatar';
 import { ContactStats } from '@/components/contact-stats';
+import { FollowUpAlerts } from '@/components/follow-up-alerts';
 import { ContactFilters, type FilterState } from '@/components/contact-filters';
 import { ContactFormDialog } from '@/components/contact-form-dialog';
 import { ContactList } from '@/components/contact-list';
@@ -22,10 +23,11 @@ import {
   createContact,
   deleteContact,
   listContacts,
+  listDueFollowUps,
   updateContact,
 } from '@/lib/contacts/api';
 import { buildContactQuery, isFiltered } from '@/lib/contacts/query';
-import type { Contact } from '@/lib/contacts/schema';
+import { todayIso, type Contact } from '@/lib/contacts/schema';
 import { isNeonConfigured, neon } from '@/lib/neon';
 
 const INITIAL_FILTERS: FilterState = {
@@ -33,6 +35,7 @@ const INITIAL_FILTERS: FilterState = {
   priority: 'all',
   sort: 'created_at',
   direction: 'desc',
+  dueOnly: false,
 };
 
 export default function ContactsPage() {
@@ -42,7 +45,13 @@ export default function ContactsPage() {
   const [filters, setFilters] = useState<FilterState>(INITIAL_FILTERS);
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
+  // Computed once per mount. The app is not long-lived enough for the date to
+  // roll over mid-session, and keeping it in state makes every dependent
+  // calculation deterministic.
+  const [today] = useState(() => todayIso());
+
   const [contacts, setContacts] = useState<Contact[] | null>(null);
+  const [due, setDue] = useState<Contact[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -56,8 +65,31 @@ export default function ContactsPage() {
   const signedIn = Boolean(session.data);
 
   // Send signed-out visitors to the sign-in page.
+  //
+  // The store can report "settled, no session" for a moment right after a
+  // successful sign-in, so confirm with an explicit read before bouncing
+  // anyone out. Redirecting on the first null is what made sign-in appear to
+  // fail on the first attempt.
   useEffect(() => {
-    if (!session.isPending && !session.data) router.replace('/sign-in');
+    if (session.isPending || session.data) return;
+
+    let cancelled = false;
+    void (async () => {
+      let confirmedSignedOut = true;
+      try {
+        const result = await neon.auth.getSession();
+        const payload = (result ?? null) as { data?: unknown } | null;
+        const settled = (payload?.data ?? payload) as { user?: unknown } | null;
+        confirmedSignedOut = !settled?.user;
+      } catch {
+        confirmedSignedOut = true;
+      }
+      if (!cancelled && confirmedSignedOut) router.replace('/sign-in');
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [session.isPending, session.data, router]);
 
   // Typing shouldn't fire a request per keystroke.
@@ -73,8 +105,17 @@ export default function ContactsPage() {
         priority: filters.priority === 'all' ? null : filters.priority,
         sort: filters.sort,
         direction: filters.direction,
+        dueOnly: filters.dueOnly,
+        today,
       }),
-    [debouncedSearch, filters.priority, filters.sort, filters.direction],
+    [
+      debouncedSearch,
+      filters.priority,
+      filters.sort,
+      filters.direction,
+      filters.dueOnly,
+      today,
+    ],
   );
 
   // Fetching lives entirely in this effect. Mutations and the retry button
@@ -98,6 +139,14 @@ export default function ContactsPage() {
         if (cancelled) return;
         setContacts(rows);
         setLoadError(null);
+
+        // Independent of the current filters: this is everything you owe.
+        try {
+          const dueRows = await listDueFollowUps(today);
+          if (!cancelled) setDue(dueRows);
+        } catch {
+          // A failed reminder count should never blank the contact list.
+        }
       } catch (caught) {
         if (cancelled) return;
         setContacts(null);
@@ -112,7 +161,7 @@ export default function ContactsPage() {
     return () => {
       cancelled = true;
     };
-  }, [signedIn, query, reloadToken]);
+  }, [signedIn, query, reloadToken, today]);
 
   const reload = useCallback(() => setReloadToken((token) => token + 1), []);
 
@@ -164,7 +213,7 @@ export default function ContactsPage() {
 
   if (!isNeonConfigured) return <SetupNotice />;
   if (session.isPending) return <PageLoading label="Checking your session…" />;
-  if (!session.data) return <PageLoading label="Redirecting to sign in…" />;
+  if (!session.data) return <PageLoading label="Finishing sign in…" />;
 
   const user = session.data.user;
   const filtered = isFiltered(query);
@@ -222,8 +271,25 @@ export default function ContactsPage() {
           </Button>
         </div>
 
+        <FollowUpAlerts
+          due={due}
+          today={today}
+          onShowDue={() =>
+            setFilters({
+              ...INITIAL_FILTERS,
+              dueOnly: true,
+              sort: 'follow_up_on',
+              direction: 'asc',
+            })
+          }
+        />
+
         {contacts !== null && contacts.length > 0 && (
-          <ContactStats contacts={contacts} filtered={filtered} />
+          <ContactStats
+            contacts={contacts}
+            filtered={filtered}
+            dueCount={due.length}
+          />
         )}
 
         <ContactFilters
@@ -246,9 +312,7 @@ export default function ContactsPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() =>
-                    setFilters({ ...filters, search: '', priority: 'all' })
-                  }
+                  onClick={() => setFilters(INITIAL_FILTERS)}
                 >
                   Clear filters
                 </Button>
@@ -269,6 +333,7 @@ export default function ContactsPage() {
         ) : (
           <ContactList
             contacts={contacts}
+            today={today}
             onEdit={openEdit}
             onDelete={handleDelete}
           />

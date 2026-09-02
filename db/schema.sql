@@ -11,6 +11,11 @@
 -- enforced here, by Postgres.
 --
 -- Safe to re-run.
+--
+-- Upgrading a database created before the date columns existed? Run:
+--   alter table public.contacts add column if not exists met_on date;
+--   alter table public.contacts add column if not exists follow_up_on date;
+-- then re-run this file to pick up the constraints and the partial index.
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
@@ -28,7 +33,9 @@ create table if not exists public.contacts (
   name       text        not null,
   company    text,
   role       text,
-  met_at     text,                     -- where you met them
+  met_at     text,                     -- where you met them (free text)
+  met_on     date,                     -- when you met them (calendar day, no time zone)
+  follow_up_on date,                   -- when to get back in touch
   notes      text,
   priority   text        not null default 'medium',
 
@@ -43,7 +50,17 @@ create table if not exists public.contacts (
   constraint contacts_met_at_len      check (met_at  is null or length(met_at)  <= 160),
   constraint contacts_notes_len       check (notes   is null or length(notes)   <= 2000),
   constraint contacts_priority_valid  check (priority in ('high', 'medium', 'low')),
-  constraint contacts_user_not_blank  check (length(btrim(user_id)) > 0)
+  constraint contacts_user_not_blank  check (length(btrim(user_id)) > 0),
+
+  -- Dates are stored as `date`, not `timestamptz`. "The day I met them" has no
+  -- time zone; storing an instant would shift the day for a travelling user.
+  constraint contacts_met_on_range check (
+    met_on is null or (met_on >= date '1900-01-01' and met_on <= date '2100-01-01')
+  ),
+  constraint contacts_follow_up_on_range check (
+    follow_up_on is null
+    or (follow_up_on >= date '1900-01-01' and follow_up_on <= date '2100-01-01')
+  )
 );
 
 -- Sorting by the `priority` text column alphabetically gives high, low, medium,
@@ -56,8 +73,14 @@ alter table public.contacts
   ) stored;
 
 -- Every query is filtered by user_id via RLS, so this is the index that matters.
-create index if not exists contacts_user_id_idx    on public.contacts (user_id);
+create index if not exists contacts_user_id_idx      on public.contacts (user_id);
 create index if not exists contacts_user_created_idx on public.contacts (user_id, created_at desc);
+
+-- Partial index: the "what do I owe today" query only ever looks at rows that
+-- actually have a follow-up date, which is a small slice of the table.
+create index if not exists contacts_follow_up_idx
+  on public.contacts (user_id, follow_up_on)
+  where follow_up_on is not null;
 
 -- -----------------------------------------------------------------------------
 -- 2. Keep updated_at honest

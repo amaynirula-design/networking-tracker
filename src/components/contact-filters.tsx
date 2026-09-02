@@ -1,6 +1,6 @@
 'use client';
 
-import { Search, SlidersHorizontal, X } from 'lucide-react';
+import { CalendarClock, Search, SlidersHorizontal, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,6 +19,8 @@ export type FilterState = {
   priority: string;
   sort: SortField;
   direction: 'asc' | 'desc';
+  /** Only contacts whose follow-up is today or already past. */
+  dueOnly: boolean;
 };
 
 export function ContactFilters({
@@ -33,7 +35,8 @@ export function ContactFilters({
   const set = <K extends keyof FilterState>(key: K, v: FilterState[K]) =>
     onChange({ ...value, [key]: v });
 
-  const hasFilters = value.search !== '' || value.priority !== 'all';
+  const hasFilters =
+    value.search !== '' || value.priority !== 'all' || value.dueOnly;
 
   return (
     <div className="border-border/70 bg-card animate-rise rounded-2xl border p-3 shadow-sm sm:p-4">
@@ -144,21 +147,45 @@ export function ContactFilters({
         </div>
       </div>
 
-      {hasFilters && (
-        <div className="border-border/60 animate-fade-in mt-3 flex items-center gap-2 border-t pt-3">
-          <span className="text-muted-foreground text-xs">Filters active</span>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="text-muted-foreground hover:text-foreground h-7 px-2 text-xs"
-            onClick={() => onChange({ ...value, search: '', priority: 'all' })}
-          >
-            <X className="size-3.5" />
-            Clear
-          </Button>
-        </div>
-      )}
+      <div className="border-border/60 mt-3 flex flex-wrap items-center gap-2 border-t pt-3">
+        <Button
+          type="button"
+          variant={value.dueOnly ? 'default' : 'outline'}
+          size="sm"
+          className="h-7 px-2.5 text-xs"
+          aria-pressed={value.dueOnly}
+          disabled={disabled}
+          onClick={() => set('dueOnly', !value.dueOnly)}
+        >
+          <CalendarClock className="size-3.5" />
+          Follow-ups due
+        </Button>
+
+        {hasFilters && (
+          <>
+            <span className="text-muted-foreground text-xs">
+              Filters active
+            </span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground hover:text-foreground h-7 px-2 text-xs"
+              onClick={() =>
+                onChange({
+                  ...value,
+                  search: '',
+                  priority: 'all',
+                  dueOnly: false,
+                })
+              }
+            >
+              <X className="size-3.5" />
+              Clear
+            </Button>
+          </>
+        )}
+      </div>
     </div>
   );
 }

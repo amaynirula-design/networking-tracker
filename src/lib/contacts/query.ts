@@ -1,7 +1,14 @@
 import { isPriority, type Priority } from './schema';
 
 /** Sort options offered in the UI. */
-export const SORT_FIELDS = ['name', 'company', 'priority', 'created_at'] as const;
+export const SORT_FIELDS = [
+  'name',
+  'company',
+  'priority',
+  'met_on',
+  'follow_up_on',
+  'created_at',
+] as const;
 export type SortField = (typeof SORT_FIELDS)[number];
 export type SortDirection = 'asc' | 'desc';
 
@@ -9,6 +16,8 @@ export const SORT_LABELS: Record<SortField, string> = {
   name: 'Name',
   company: 'Company',
   priority: 'Priority',
+  met_on: 'Date met',
+  follow_up_on: 'Follow-up date',
   created_at: 'Date added',
 };
 
@@ -21,8 +30,17 @@ const ORDER_COLUMN: Record<SortField, string> = {
   name: 'name',
   company: 'company',
   priority: 'priority_rank',
+  met_on: 'met_on',
+  follow_up_on: 'follow_up_on',
   created_at: 'created_at',
 };
+
+/**
+ * Columns that are frequently empty. Postgres sorts NULLs first descending and
+ * last ascending; for these we always want the blanks at the bottom, so a list
+ * sorted by follow-up date opens on the contacts that actually have one.
+ */
+const NULLABLE_SORTS = new Set<SortField>(['met_on', 'follow_up_on', 'company']);
 
 /** Columns the free-text search scans. */
 export const SEARCH_COLUMNS = ['name', 'company', 'role', 'met_at'] as const;
@@ -32,6 +50,10 @@ export type ContactQuery = {
   priority?: string | null;
   sort?: string | null;
   direction?: string | null;
+  /** Restrict to contacts whose follow-up is today or already past. */
+  dueOnly?: boolean;
+  /** Today as YYYY-MM-DD; injected so the logic stays pure and testable. */
+  today?: string;
 };
 
 export type ResolvedQuery = {
@@ -44,6 +66,10 @@ export type ResolvedQuery = {
   ascending: boolean;
   /** Argument for postgrest-js `.or(...)`, or null when there is no search. */
   orFilter: string | null;
+  /** Put empty values last regardless of direction. */
+  nullsFirst: boolean;
+  /** When set, only rows with follow_up_on <= this date. */
+  dueOnOrBefore: string | null;
 };
 
 export const DEFAULT_QUERY: ResolvedQuery = {
@@ -54,6 +80,10 @@ export const DEFAULT_QUERY: ResolvedQuery = {
   orderColumn: 'created_at',
   ascending: false,
   orFilter: null,
+  // created_at is NOT NULL so this has no practical effect, but it must match
+  // what buildContactQuery() computes for empty input.
+  nullsFirst: true,
+  dueOnOrBefore: null,
 };
 
 /**
@@ -106,10 +136,19 @@ export function buildContactQuery(input: ContactQuery = {}): ResolvedQuery {
     orderColumn: ORDER_COLUMN[sort],
     ascending: direction === 'asc',
     orFilter,
+    nullsFirst: NULLABLE_SORTS.has(sort) ? false : direction !== 'asc',
+    dueOnOrBefore:
+      input.dueOnly && typeof input.today === 'string' && input.today !== ''
+        ? input.today
+        : null,
   };
 }
 
 /** True when the user has narrowed the list — drives "no results" vs "no contacts". */
 export function isFiltered(query: ResolvedQuery): boolean {
-  return query.search !== null || query.priority !== null;
+  return (
+    query.search !== null ||
+    query.priority !== null ||
+    query.dueOnOrBefore !== null
+  );
 }

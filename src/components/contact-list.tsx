@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { MapPin, Pencil, Trash2 } from 'lucide-react';
+import { CalendarDays, MapPin, Pencil, Trash2 } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,8 +22,9 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { ContactAvatar } from '@/components/contact-avatar';
+import { FollowUpBadge } from '@/components/follow-up-badge';
 import { PriorityBadge } from '@/components/priority-badge';
-import type { Contact } from '@/lib/contacts/schema';
+import { todayIso, type Contact } from '@/lib/contacts/schema';
 
 function formatDate(iso: string): string {
   const date = new Date(iso);
@@ -35,16 +36,37 @@ function formatDate(iso: string): string {
   });
 }
 
+/**
+ * Format a bare `YYYY-MM-DD`.
+ *
+ * Parsed as UTC and formatted in UTC on purpose: `new Date('2026-09-02')` is
+ * midnight UTC, which is the previous day in the Americas, so formatting it
+ * locally would display the wrong date.
+ */
+function formatDay(day: string | null): string | null {
+  if (!day) return null;
+  const date = new Date(`${day}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
+}
+
 const DASH = <span className="text-muted-foreground/50">—</span>;
 
 export function ContactList({
   contacts,
   onEdit,
   onDelete,
+  today = todayIso(),
 }: {
   contacts: Contact[];
   onEdit: (contact: Contact) => void;
   onDelete: (contact: Contact) => Promise<void>;
+  today?: string;
 }) {
   const [pendingDelete, setPendingDelete] = useState<Contact | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -80,7 +102,7 @@ export function ContactList({
                 Priority
               </TableHead>
               <TableHead className="text-muted-foreground h-11 text-xs font-medium tracking-wide uppercase">
-                Added
+                Follow-up
               </TableHead>
               <TableHead className="w-20" />
             </TableRow>
@@ -114,13 +136,22 @@ export function ContactList({
                   {contact.company ?? DASH}
                 </TableCell>
                 <TableCell className="py-3.5 align-top text-sm">
-                  {contact.met_at ?? DASH}
+                  {contact.met_at ?? (contact.met_on ? '' : DASH)}
+                  {contact.met_on && (
+                    <div className="text-muted-foreground mt-0.5 text-xs">
+                      {formatDay(contact.met_on)}
+                    </div>
+                  )}
                 </TableCell>
                 <TableCell className="py-3.5 align-top">
                   <PriorityBadge priority={contact.priority} />
                 </TableCell>
-                <TableCell className="text-muted-foreground py-3.5 align-top text-sm whitespace-nowrap">
-                  {formatDate(contact.created_at)}
+                <TableCell className="py-3.5 align-top whitespace-nowrap">
+                  {contact.follow_up_on ? (
+                    <FollowUpBadge date={contact.follow_up_on} today={today} />
+                  ) : (
+                    DASH
+                  )}
                 </TableCell>
                 <TableCell className="py-3.5 align-top text-right">
                   {/* Revealed on hover, but always reachable by keyboard. */}
@@ -174,11 +205,27 @@ export function ContactList({
               </div>
             </div>
 
-            {contact.met_at && (
-              <p className="text-muted-foreground mt-3 flex items-center gap-1.5 text-sm">
-                <MapPin className="size-3.5 shrink-0" aria-hidden />
-                {contact.met_at}
-              </p>
+            {(contact.met_at || contact.met_on) && (
+              <div className="text-muted-foreground mt-3 space-y-1 text-sm">
+                {contact.met_at && (
+                  <p className="flex items-center gap-1.5">
+                    <MapPin className="size-3.5 shrink-0" aria-hidden />
+                    {contact.met_at}
+                  </p>
+                )}
+                {contact.met_on && (
+                  <p className="flex items-center gap-1.5">
+                    <CalendarDays className="size-3.5 shrink-0" aria-hidden />
+                    Met {formatDay(contact.met_on)}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {contact.follow_up_on && (
+              <div className="mt-3">
+                <FollowUpBadge date={contact.follow_up_on} today={today} />
+              </div>
             )}
             {contact.notes && (
               <p className="mt-2 text-sm leading-relaxed whitespace-pre-wrap">

@@ -1,6 +1,6 @@
 'use client';
 
-import { Building2, Flame, Users } from 'lucide-react';
+import { Building2, CalendarClock, Flame, Users } from 'lucide-react';
 import type { Contact } from '@/lib/contacts/schema';
 
 /**
@@ -13,9 +13,12 @@ import type { Contact } from '@/lib/contacts/schema';
 export function ContactStats({
   contacts,
   filtered,
+  dueCount,
 }: {
   contacts: Contact[];
   filtered: boolean;
+  /** Counted across the whole list, not just what is on screen. */
+  dueCount: number;
 }) {
   const high = contacts.filter((c) => c.priority === 'high').length;
   const companies = new Set(
@@ -30,11 +33,17 @@ export function ContactStats({
       tint: 'text-brand',
     },
     { icon: Flame, label: 'High priority', value: high, tint: 'text-priority-high' },
-    { icon: Building2, label: 'Companies', value: companies, tint: 'text-priority-medium' },
+    {
+      icon: CalendarClock,
+      label: 'Due now',
+      value: dueCount,
+      tint: 'text-priority-medium',
+    },
+    { icon: Building2, label: 'Companies', value: companies, tint: 'text-priority-low' },
   ];
 
   return (
-    <dl className="grid grid-cols-3 gap-2.5 sm:gap-3">
+    <dl className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 sm:gap-3">
       {tiles.map(({ icon: Icon, label, value, tint }, i) => (
         <div
           key={label}

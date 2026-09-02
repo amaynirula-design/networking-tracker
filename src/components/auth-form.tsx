@@ -107,6 +107,20 @@ export function AuthForm({ mode }: { mode: Mode }) {
         return;
       }
 
+      // Hydrate the session store before navigating.
+      //
+      // signIn.email resolves as soon as the credentials are accepted, but the
+      // `useSession` store is populated separately. Navigating immediately let
+      // the contacts page mount, read a not-yet-populated session, and bounce
+      // straight back here — which showed up as "I have to sign in twice".
+      // Awaiting an explicit read means the store is warm before we leave.
+      try {
+        await neon.auth.getSession();
+      } catch {
+        // A failure here only costs us the warm cache; the guard on the
+        // contacts page re-checks anyway.
+      }
+
       router.replace('/contacts');
       router.refresh();
     } catch (caught) {

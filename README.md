@@ -298,9 +298,10 @@ Items 6–9 are the ones worth reading closely: they prove that the security and
 ### Test output
 
 ```text
-$ npm test
+$ npm test          # unit only in a fresh clone
+$ npm run test:rls   # adds the live two-account suite
 
- ✓ tests/query.test.ts > buildContactQuery — defaults > falls back to newest-first when given nothing 4ms
+ ✓ tests/query.test.ts > buildContactQuery — defaults > falls back to newest-first when given nothing 3ms
  ✓ tests/query.test.ts > buildContactQuery — defaults > ignores an unknown sort field instead of trusting it 0ms
  ✓ tests/query.test.ts > buildContactQuery — defaults > ignores an unknown priority filter 0ms
  ✓ tests/query.test.ts > buildContactQuery — defaults > treats any direction other than asc as desc 0ms
@@ -335,18 +336,18 @@ $ npm test
  ✓ tests/schema.test.ts > parseContactInput — optional fields > stores blank optional fields as null rather than empty strings 0ms
  ✓ tests/schema.test.ts > parseContactInput — optional fields > reports every invalid field at once 0ms
  ✓ tests/schema.test.ts > isPriority > narrows only the three accepted values 0ms
- ↓ tests/rls.integration.test.ts > RLS — User A vs User B > defaults user_id to the caller's own auth.user_id()
- ↓ tests/rls.integration.test.ts > RLS — User A vs User B > does not leak the row into an unfiltered list for the other user
- ↓ tests/rls.integration.test.ts > RLS — User A vs User B > returns nothing when the other user asks for the row by id
- ↓ tests/rls.integration.test.ts > RLS — User A vs User B > refuses to update another user's row
- ↓ tests/rls.integration.test.ts > RLS — User A vs User B > refuses to delete another user's row
- ↓ tests/rls.integration.test.ts > RLS — User A vs User B > refuses an insert that claims another user as the owner
- ↓ tests/rls.integration.test.ts > RLS — User A vs User B > refuses to hand your own row to someone else
- ↓ tests/rls.integration.test.ts > Database-level validation > rejects an invalid priority even when the client is bypassed
- ↓ tests/rls.integration.test.ts > Database-level validation > rejects a blank name even when the client is bypassed
- ↓ tests/rls.integration.test.ts > Anonymous access > refuses to read contacts without a token
- Test Files  2 passed | 1 skipped (3)
-      Tests  35 passed | 10 skipped (45)
+ ✓ tests/rls.integration.test.ts > RLS — User A vs User B > defaults user_id to the caller's own auth.user_id() 33ms
+ ✓ tests/rls.integration.test.ts > RLS — User A vs User B > does not leak the row into an unfiltered list for the other user 36ms
+ ✓ tests/rls.integration.test.ts > RLS — User A vs User B > returns nothing when the other user asks for the row by id 35ms
+ ✓ tests/rls.integration.test.ts > RLS — User A vs User B > refuses to update another user's row 67ms
+ ✓ tests/rls.integration.test.ts > RLS — User A vs User B > refuses to delete another user's row 66ms
+ ✓ tests/rls.integration.test.ts > RLS — User A vs User B > refuses an insert that claims another user as the owner 34ms
+ ✓ tests/rls.integration.test.ts > RLS — User A vs User B > refuses to hand your own row to someone else 132ms
+ ✓ tests/rls.integration.test.ts > Database-level validation > rejects an invalid priority even when the client is bypassed 33ms
+ ✓ tests/rls.integration.test.ts > Database-level validation > rejects a blank name even when the client is bypassed 35ms
+ ✓ tests/rls.integration.test.ts > Anonymous access > refuses to read contacts without a token 5ms
+ Test Files  3 passed (3)
+      Tests  45 passed (45)
 ```
 
 ## Deployment

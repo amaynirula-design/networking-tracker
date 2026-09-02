@@ -32,17 +32,65 @@ if (!configured) {
   );
 }
 
-/** Sign in over HTTP and exchange the session cookie for a Data API JWT. */
-async function signIn(email: string, password: string): Promise<string> {
-  const res = await fetch(`${AUTH_URL}/sign-in/email`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ email, password }),
-  });
+/**
+ * Origin that Better Auth will accept. Node's fetch sends no `Origin` header,
+ * unlike a browser, and Better Auth rejects such requests outright with
+ * MISSING_OR_NULL_ORIGIN — so we send one explicitly. It must be listed in the
+ * project's trusted origins, which is the same allow-list the deployed app
+ * relies on.
+ */
+const ORIGIN = process.env.TEST_ORIGIN ?? 'http://localhost:3000';
+
+/**
+ * Sign-in is memoised per account.
+ *
+ * Two suites in this file both need User A. Signing in twice concurrently was
+ * intermittently rejected by the auth service, which made the run flaky — so
+ * each account authenticates at most once per test run and the promise is
+ * shared.
+ */
+const sessions = new Map<string, Promise<string>>();
+
+function signIn(email: string, password: string): Promise<string> {
+  const cached = sessions.get(email);
+  if (cached) return cached;
+  const pending = doSignIn(email, password);
+  sessions.set(email, pending);
+  return pending;
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Sign in over HTTP and exchange the session cookie for a Data API JWT.
+ *
+ * Better Auth rate-limits sign-in, so running this suite several times in quick
+ * succession can return 429. That is the service behaving correctly, not a test
+ * failure, so back off and retry rather than reporting a spurious break.
+ */
+async function doSignIn(email: string, password: string): Promise<string> {
+  const backoffMs = [2_000, 5_000, 10_000];
+  let res!: Response;
+
+  for (let attempt = 0; ; attempt++) {
+    res = await fetch(`${AUTH_URL}/sign-in/email`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', origin: ORIGIN },
+      body: JSON.stringify({ email, password }),
+    });
+    if (res.status !== 429 || attempt >= backoffMs.length) break;
+    await sleep(backoffMs[attempt]);
+  }
+
   if (!res.ok) {
-    throw new Error(
-      `Sign-in failed for ${email} (${res.status}): ${await res.text()}`,
-    );
+    const body = await res.text();
+    if (res.status === 429) {
+      throw new Error(
+        `Sign-in for ${email} is still rate-limited after ${backoffMs.length} retries. ` +
+          `Wait a minute and re-run. Response: ${body}`,
+      );
+    }
+    throw new Error(`Sign-in failed for ${email} (${res.status}): ${body}`);
   }
 
   // Node has no cookie jar, so carry the session cookie forward by hand.
@@ -51,7 +99,9 @@ async function signIn(email: string, password: string): Promise<string> {
     .map((c) => c.split(';')[0])
     .join('; ');
 
-  const tokenRes = await fetch(`${AUTH_URL}/token`, { headers: { cookie } });
+  const tokenRes = await fetch(`${AUTH_URL}/token`, {
+    headers: { cookie, origin: ORIGIN },
+  });
   if (!tokenRes.ok) {
     throw new Error(
       `Token exchange failed for ${email} (${tokenRes.status}): ${await tokenRes.text()}`,

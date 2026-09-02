@@ -9,6 +9,7 @@ A private, per-user networking tracker for the people you want to stay connected
 ## Table of contents
 
 - [Features](#features)
+- [Screenshots](#screenshots)
 - [Product walkthrough](#product-walkthrough)
 - [Technology stack](#technology-stack)
 - [Architecture](#architecture)
@@ -38,11 +39,75 @@ A private, per-user networking tracker for the people you want to stay connected
 - **Responsive** — a real table on desktop, stacked cards on mobile.
 - **Validated twice** — instant inline errors in the browser, and authoritative CHECK constraints in the database.
 
+## Screenshots
+
+All captured from the running app against the live Neon database by
+`npm run screenshots`, which drives a real Chrome via Playwright. They are
+generated rather than hand-taken so they can be refreshed after any UI change
+instead of quietly going stale.
+
+### Sign in
+
+![Sign in](docs/screenshots/01-sign-in.png)
+
+### Contact list
+
+The follow-up banner, the summary tiles, and per-row follow-up state — overdue,
+due today, and upcoming.
+
+![Contact list](docs/screenshots/03-contact-list.png)
+
+### Adding a contact
+
+![Add contact](docs/screenshots/04-add-contact.png)
+
+### Invalid input fails safely
+
+Submitting without a name: an inline message, `aria-invalid` on the field, and
+**no request sent**. If a tampered client skipped this, the database rejects it
+anyway — see [Testing](#testing).
+
+![Validation error](docs/screenshots/05-validation-error.png)
+
+### Filtering and sorting
+
+Filtered to High priority and sorted by follow-up date.
+
+![Filter and sort](docs/screenshots/06-filter-sort.png)
+
+### Two accounts, same URL
+
+The privacy requirement, side by side. Left: User A's list. Right: User B
+signed in to the same deployment, seeing none of it. The isolation is enforced
+by RLS in Postgres, not by the interface — and is asserted by ten automated
+checks in [Testing](#testing).
+
+| User A | User B |
+|---|---|
+| ![User A](docs/screenshots/08a-user-a.png) | ![User B](docs/screenshots/02-empty-state.png) |
+
+### Mobile and dark theme
+
+| 390px | Dark |
+|---|---|
+| ![Mobile](docs/screenshots/07-mobile.png) | ![Dark mode](docs/screenshots/09-dark-mode.png) |
+
+### Regenerating them
+
+```bash
+npm run dev          # in one terminal
+npm run screenshots  # in another
+```
+
+Reads the `TEST_USER_*` credentials from `.env.local`, seeds a fixed set of
+demo contacts on User A so every run produces the same images, and leaves User B
+empty on purpose — that contrast is the two-account evidence. Set
+`SCREENSHOT_URL` to point it at the deployed site instead of localhost.
+
 ## Product walkthrough
 
 Every behaviour below was exercised against the running app and the live Neon
-database, and the observed result is recorded. (Screenshots to be dropped into
-`docs/screenshots/` — see [Adding screenshots](#adding-screenshots).)
+database, and the observed result is recorded.
 
 | Step | What was verified | Result |
 |---|---|---|
@@ -66,20 +131,6 @@ database, and the observed result is recorded. (Screenshots to be dropped into
 | Responsive | 375px | Stacked cards; table hidden (`display: none`); no horizontal overflow |
 | Sign out | Sign out button | Session cleared, redirected to `/sign-in` |
 | Route guard | Visit `/contacts` while signed out | Redirected to `/sign-in`; no contact data rendered |
-
-### Adding screenshots
-
-The `docs/screenshots/` directory is ready. The rubric asks for captures of
-sign-in/sign-out, create/edit/delete/refresh, a two-account privacy check, and
-one invalid input failing safely. Save them with these names and they will
-appear here:
-
-`01-sign-in.png`, `02-empty-state.png`, `03-contact-list.png`,
-`04-add-contact.png`, `05-validation-error.png`, `06-filter-sort.png`,
-`07-mobile.png`, `08-two-accounts.png`
-
-The two-account requirement is additionally covered by an automated test — see
-[Testing](#testing).
 
 ## Technology stack
 
@@ -261,6 +312,19 @@ select policyname, cmd from pg_policies where tablename = 'contacts' order by cm
 
 You should see row security enabled and exactly four policies, one each for `SELECT`, `INSERT`, `UPDATE`, and `DELETE`.
 
+> **If you later add or rename a column, reload the Data API's schema cache:**
+>
+> ```sql
+> notify pgrst, 'reload schema';
+> ```
+>
+> The Data API is PostgREST, which caches the table shape. Until it reloads,
+> writes touching a new column fail with
+> `Could not find the 'x' column of 'contacts' in the schema cache` — and
+> confusingly, reads of existing columns keep working, so it looks like a bug in
+> the application rather than a stale cache. This bit me when adding `met_on`
+> and `follow_up_on`.
+
 ### 4. Configure the environment
 
 ```bash
@@ -437,10 +501,10 @@ $ npm run test:rls   # adds the live two-account suite
 | Requirement | Where to find it |
 |---|---|
 | Live public URL | <https://networking-tracker-nine.vercel.app> |
-| Sign in / sign out | [Product walkthrough](#product-walkthrough) — verified; screenshot slot `01-sign-in.png` |
-| Create, edit, delete, refresh | [Product walkthrough](#product-walkthrough) — all verified against live Postgres |
-| Two accounts, no cross-access | `npm run test:rls` — 10 assertions, output in [Testing](#testing) |
-| Invalid input fails safely | [Product walkthrough](#product-walkthrough) — client inline error **and** DB `23514` when the client is bypassed |
+| Sign in / sign out | [Screenshots](#sign-in) + [walkthrough](#product-walkthrough) |
+| Create, edit, delete, refresh | [Screenshots](#adding-a-contact) + [walkthrough](#product-walkthrough) |
+| Two accounts, no cross-access | [Side-by-side screenshots](#two-accounts-same-url) + `npm run test:rls` (10 assertions) |
+| Invalid input fails safely | [Screenshot](#invalid-input-fails-safely) — client inline error **and** DB `23514` when the client is bypassed |
 | Automated test passing | [Test output](#test-output) above |
 | `user_id text default auth.user_id()`, not null | [`db/schema.sql`](db/schema.sql), [schema table](#database-schema) |
 | RLS enabled | [`db/schema.sql`](db/schema.sql) |

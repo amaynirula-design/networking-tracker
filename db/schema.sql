@@ -15,7 +15,10 @@
 -- Upgrading a database created before the date columns existed? Run:
 --   alter table public.contacts add column if not exists met_on date;
 --   alter table public.contacts add column if not exists follow_up_on date;
--- then re-run this file to pick up the constraints and the partial index.
+-- then re-run this file to pick up the constraints and the partial index, and
+-- finally reload the Data API's schema cache or writes to the new columns will
+-- fail with "could not find the column ... in the schema cache":
+--   notify pgrst, 'reload schema';
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------

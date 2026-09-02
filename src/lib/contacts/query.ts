@@ -63,6 +63,17 @@ export const DEFAULT_QUERY: ResolvedQuery = {
  * search term such as `a,b` would be parsed as two filter clauses. Wrapping the
  * value in double quotes neutralises them; inside the quotes only `\` and `"`
  * need escaping.
+ *
+ * Verified against a live Neon Data API rather than assumed, because the
+ * PostgREST docs do not state whether `*` keeps its wildcard meaning inside
+ * quotes. It does:
+ *
+ *   or=(name.ilike.*Haas*)        -> matches
+ *   or=(name.ilike."*Haas*")      -> matches  (quoting is safe)
+ *   or=(name.ilike."*Bob, comma*") -> matches  (comma survives)
+ *   or=(name.ilike.*Bob, comma*)  -> PGRST100 "failed to parse logic tree"
+ *
+ * That last line is the bug this function exists to prevent.
  */
 export function escapeFilterValue(value: string): string {
   return `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;

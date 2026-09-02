@@ -180,6 +180,20 @@ revoke all on public.contacts from anonymous;   -- signed-out visitors get nothi
 
 The two `NEXT_PUBLIC_` URLs are public by design — they ship in the JavaScript bundle. **Security does not come from hiding them; it comes from RLS.** There is no Postgres connection string anywhere in the frontend, and the app does not need one at runtime.
 
+To show that concretely, here is the deployed Data API answering a request that carries a valid **anonymous** token — a token anyone can mint from the public auth endpoint — asking for the contacts table:
+
+```console
+$ curl -s "$DATA_API_URL/contacts?select=id" -H "Authorization: Bearer $ANON_TOKEN"
+{"code":"42501","message":"permission denied for table contacts","details":null,"hint":null}
+```
+
+A request with no token at all is refused earlier still:
+
+```console
+$ curl -s "$DATA_API_URL/contacts"
+{"message":"missing authentication credentials: required authorization bearer token in JWT format", ...}
+```
+
 ## Local setup
 
 ### Prerequisites

@@ -50,6 +50,19 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
+  --color-brand-gold: var(--brand-gold);
+  --color-brand-gold-soft: var(--brand-gold-soft);
+  --color-priority-high: var(--priority-high);
+  --color-priority-high-bg: var(--priority-high-bg);
+  --color-priority-medium: var(--priority-medium);
+  --color-priority-medium-bg: var(--priority-medium-bg);
+  --color-priority-low: var(--priority-low);
+  --color-priority-low-bg: var(--priority-low-bg);
+  --animate-rise: rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-fade-in: fade-in 0.35s ease-out both;
+  --animate-sheen: sheen 2.2s ease-in-out infinite;
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -59,110 +72,199 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* ---------------------------------------------------------------------------
+   Palette — Berkeley Blue (#003262) and California Gold (#FDB515).
+   Contextual rather than arbitrary: this is a Berkeley networking tracker.
+   Hues are shared across light and dark so the identity survives the switch;
+   only lightness and chroma are re-balanced for the background it sits on.
+   --------------------------------------------------------------------------- */
 :root {
   color-scheme: light dark;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+
+  --background: oklch(0.983 0.006 250);
+  --foreground: oklch(0.20 0.024 258);
+
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  --card-foreground: oklch(0.20 0.024 258);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --popover-foreground: oklch(0.20 0.024 258);
+
+  /* Berkeley Blue, lifted just enough to stay legible as a button fill. */
+  --primary: oklch(0.36 0.098 254);
+  --primary-foreground: oklch(0.99 0.004 250);
+
+  --secondary: oklch(0.955 0.012 250);
+  --secondary-foreground: oklch(0.30 0.055 254);
+
+  --muted: oklch(0.965 0.009 250);
+  --muted-foreground: oklch(0.505 0.026 254);
+
+  --accent: oklch(0.945 0.012 250);
+  --accent-foreground: oklch(0.30 0.055 254);
+
+  --destructive: oklch(0.575 0.205 26);
+  --destructive-foreground: oklch(0.99 0.004 250);
+
+  --border: oklch(0.905 0.012 250);
+  --input: oklch(0.90 0.014 250);
+  --ring: oklch(0.55 0.115 254);
+
+  /* Brand accents used by gradients, the logo mark and focus flourishes. */
+  --brand: oklch(0.36 0.098 254);
+  --brand-strong: oklch(0.28 0.085 254);
+  --brand-gold: oklch(0.815 0.152 82);
+  --brand-gold-soft: oklch(0.945 0.055 88);
+
+  /* The brand gradient always carries white content (logo glyph, the auth
+     panel, empty-state icons), so its stops are deliberately fixed rather than
+     theme-dependent. Deriving them from --brand made the panel go pale in dark
+     mode and dropped the white text to unreadable contrast. */
+  --gradient-from: oklch(0.245 0.075 256);
+  --gradient-mid: oklch(0.345 0.10 252);
+  --gradient-to: oklch(0.455 0.105 246);
+
+  /* Priority scale — semantic, and each keeps a text-contrast partner. */
+  --priority-high: oklch(0.56 0.185 25);
+  --priority-high-bg: oklch(0.965 0.032 30);
+  --priority-medium: oklch(0.60 0.125 70);
+  --priority-medium-bg: oklch(0.968 0.038 85);
+  --priority-low: oklch(0.52 0.055 235);
+  --priority-low-bg: oklch(0.962 0.014 240);
+
+  --chart-1: oklch(0.36 0.098 254);
+  --chart-2: oklch(0.815 0.152 82);
+  --chart-3: oklch(0.55 0.115 254);
+  --chart-4: oklch(0.56 0.185 25);
+  --chart-5: oklch(0.65 0.09 200);
+
+  --sidebar: oklch(0.983 0.006 250);
+  --sidebar-foreground: oklch(0.20 0.024 258);
+  --sidebar-primary: oklch(0.36 0.098 254);
+  --sidebar-primary-foreground: oklch(0.99 0.004 250);
+  --sidebar-accent: oklch(0.945 0.012 250);
+  --sidebar-accent-foreground: oklch(0.30 0.055 254);
+  --sidebar-border: oklch(0.905 0.012 250);
+  --sidebar-ring: oklch(0.55 0.115 254);
+
+  --radius: 0.75rem;
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: oklch(0.165 0.021 258);
+  --foreground: oklch(0.955 0.006 250);
+
+  --card: oklch(0.213 0.026 258);
+  --card-foreground: oklch(0.955 0.006 250);
+  --popover: oklch(0.213 0.026 258);
+  --popover-foreground: oklch(0.955 0.006 250);
+
+  /* On a dark ground the deep navy reads as black, so lift it to a bright
+     cornflower that still belongs to the same hue family. */
+  --primary: oklch(0.72 0.125 250);
+  --primary-foreground: oklch(0.165 0.021 258);
+
+  --secondary: oklch(0.275 0.03 258);
+  --secondary-foreground: oklch(0.955 0.006 250);
+
+  --muted: oklch(0.248 0.026 258);
+  --muted-foreground: oklch(0.705 0.024 254);
+
+  --accent: oklch(0.30 0.038 254);
+  --accent-foreground: oklch(0.955 0.006 250);
+
+  --destructive: oklch(0.655 0.19 26);
+  --destructive-foreground: oklch(0.99 0.004 250);
+
+  --border: oklch(0.305 0.03 258);
+  --input: oklch(0.325 0.032 258);
+  --ring: oklch(0.655 0.12 250);
+
+  --brand: oklch(0.72 0.125 250);
+  --brand-strong: oklch(0.58 0.13 252);
+  --brand-gold: oklch(0.80 0.15 82);
+  --brand-gold-soft: oklch(0.34 0.06 80);
+
+  --priority-high: oklch(0.76 0.14 28);
+  --priority-high-bg: oklch(0.29 0.075 27);
+  --priority-medium: oklch(0.82 0.12 82);
+  --priority-medium-bg: oklch(0.30 0.06 80);
+  --priority-low: oklch(0.76 0.035 240);
+  --priority-low-bg: oklch(0.28 0.025 245);
+
+  --chart-1: oklch(0.72 0.125 250);
+  --chart-2: oklch(0.80 0.15 82);
+  --chart-3: oklch(0.58 0.13 252);
+  --chart-4: oklch(0.76 0.14 28);
+  --chart-5: oklch(0.72 0.09 200);
+
+  --sidebar: oklch(0.165 0.021 258);
+  --sidebar-foreground: oklch(0.955 0.006 250);
+  --sidebar-primary: oklch(0.72 0.125 250);
+  --sidebar-primary-foreground: oklch(0.165 0.021 258);
+  --sidebar-accent: oklch(0.30 0.038 254);
+  --sidebar-accent-foreground: oklch(0.955 0.006 250);
+  --sidebar-border: oklch(0.305 0.03 258);
+  --sidebar-ring: oklch(0.655 0.12 250);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not(.light) {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.269 0 0);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.556 0 0);
-  }
+    --background: oklch(0.165 0.021 258);
+    --foreground: oklch(0.955 0.006 250);
+
+    --card: oklch(0.213 0.026 258);
+    --card-foreground: oklch(0.955 0.006 250);
+    --popover: oklch(0.213 0.026 258);
+    --popover-foreground: oklch(0.955 0.006 250);
+
+    /* On a dark ground the deep navy reads as black, so lift it to a bright
+       cornflower that still belongs to the same hue family. */
+    --primary: oklch(0.72 0.125 250);
+    --primary-foreground: oklch(0.165 0.021 258);
+
+    --secondary: oklch(0.275 0.03 258);
+    --secondary-foreground: oklch(0.955 0.006 250);
+
+    --muted: oklch(0.248 0.026 258);
+    --muted-foreground: oklch(0.705 0.024 254);
+
+    --accent: oklch(0.30 0.038 254);
+    --accent-foreground: oklch(0.955 0.006 250);
+
+    --destructive: oklch(0.655 0.19 26);
+    --destructive-foreground: oklch(0.99 0.004 250);
+
+    --border: oklch(0.305 0.03 258);
+    --input: oklch(0.325 0.032 258);
+    --ring: oklch(0.655 0.12 250);
+
+    --brand: oklch(0.72 0.125 250);
+    --brand-strong: oklch(0.58 0.13 252);
+    --brand-gold: oklch(0.80 0.15 82);
+    --brand-gold-soft: oklch(0.34 0.06 80);
+
+    --priority-high: oklch(0.76 0.14 28);
+    --priority-high-bg: oklch(0.29 0.075 27);
+    --priority-medium: oklch(0.82 0.12 82);
+    --priority-medium-bg: oklch(0.30 0.06 80);
+    --priority-low: oklch(0.76 0.035 240);
+    --priority-low-bg: oklch(0.28 0.025 245);
+
+    --chart-1: oklch(0.72 0.125 250);
+    --chart-2: oklch(0.80 0.15 82);
+    --chart-3: oklch(0.58 0.13 252);
+    --chart-4: oklch(0.76 0.14 28);
+    --chart-5: oklch(0.72 0.09 200);
+
+    --sidebar: oklch(0.165 0.021 258);
+    --sidebar-foreground: oklch(0.955 0.006 250);
+    --sidebar-primary: oklch(0.72 0.125 250);
+    --sidebar-primary-foreground: oklch(0.165 0.021 258);
+    --sidebar-accent: oklch(0.30 0.038 254);
+    --sidebar-accent-foreground: oklch(0.955 0.006 250);
+    --sidebar-border: oklch(0.305 0.03 258);
+    --sidebar-ring: oklch(0.655 0.12 250);
+}
 }
 
 @layer base {
@@ -175,4 +277,123 @@
   html {
     @apply font-sans;
   }
+}
+/* ---------------------------------------------------------------------------
+   Motion
+   Everything here is decorative, so it is all disabled under
+   prefers-reduced-motion at the bottom of this file.
+   --------------------------------------------------------------------------- */
+@keyframes rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes sheen {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 1; }
+}
+
+@layer utilities {
+  /* Contact avatars. Only the hue comes from the component (via --avatar-hue);
+     lightness and chroma are set here so the swatch stays legible on both a
+     white card and a dark navy one. */
+  .contact-avatar {
+    background-color: oklch(0.925 0.055 var(--avatar-hue));
+    color: oklch(0.375 0.115 var(--avatar-hue));
+    box-shadow: inset 0 0 0 1px oklch(0.80 0.075 var(--avatar-hue));
+  }
+
+  /* Staggered entrance for lists. The delay is set per item via --i so a list
+     of cards cascades instead of snapping in all at once. */
+  .animate-rise {
+    animation: rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: calc(var(--i, 0) * 55ms);
+  }
+
+  .animate-fade-in { animation: fade-in 0.35s ease-out both; }
+
+  /* The brand gradient, used by the logo mark and primary surfaces. */
+  .bg-brand-gradient {
+    background-image: linear-gradient(
+      135deg,
+      var(--gradient-from) 0%,
+      var(--gradient-mid) 52%,
+      var(--gradient-to) 100%
+    );
+  }
+
+  .text-brand-gradient {
+    background-image: linear-gradient(
+      100deg,
+      var(--foreground) 0%,
+      color-mix(in oklab, var(--brand) 80%, var(--foreground)) 55%,
+      var(--brand-gold) 130%
+    );
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+
+  /* Soft ambient wash behind the page. Two offset radial tints, deliberately
+     low-chroma so text contrast is unaffected. */
+  .bg-ambient {
+    background-image:
+      radial-gradient(
+        ellipse 80% 55% at 12% -10%,
+        color-mix(in oklab, var(--brand) 14%, transparent) 0%,
+        transparent 60%
+      ),
+      radial-gradient(
+        ellipse 70% 50% at 92% 0%,
+        color-mix(in oklab, var(--brand-gold) 13%, transparent) 0%,
+        transparent 55%
+      );
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+  }
+
+  /* Lift on hover — used by contact cards and table rows. */
+  .hover-lift {
+    transition:
+      transform 0.2s cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 0.2s cubic-bezier(0.22, 1, 0.36, 1),
+      border-color 0.2s ease;
+  }
+  .hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px -12px color-mix(in oklab, var(--brand) 45%, transparent);
+    border-color: color-mix(in oklab, var(--brand) 32%, var(--border));
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) .contact-avatar {
+    background-color: oklch(0.32 0.062 var(--avatar-hue));
+    color: oklch(0.86 0.09 var(--avatar-hue));
+    box-shadow: inset 0 0 0 1px oklch(0.45 0.075 var(--avatar-hue));
+  }
+}
+
+.dark .contact-avatar {
+  background-color: oklch(0.32 0.062 var(--avatar-hue));
+  color: oklch(0.86 0.09 var(--avatar-hue));
+  box-shadow: inset 0 0 0 1px oklch(0.45 0.075 var(--avatar-hue));
+}
+
+/* Respect the user's motion preference: keep the design, drop the movement. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .hover-lift:hover { transform: none; }
 }

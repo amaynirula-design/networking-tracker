@@ -1,6 +1,6 @@
 'use client';
 
-import { Search, X } from 'lucide-react';
+import { Search, SlidersHorizontal, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -36,20 +36,22 @@ export function ContactFilters({
   const hasFilters = value.search !== '' || value.priority !== 'all';
 
   return (
-    <div className="bg-card space-y-3 rounded-lg border p-3 sm:p-4">
+    <div className="border-border/70 bg-card animate-rise rounded-2xl border p-3 shadow-sm sm:p-4">
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="space-y-1.5 sm:col-span-2 lg:col-span-2">
-          <Label htmlFor="search">Search</Label>
-          <div className="relative">
+        <div className="space-y-1.5 sm:col-span-2">
+          <Label htmlFor="search" className="text-muted-foreground text-xs font-medium">
+            Search
+          </Label>
+          <div className="group relative">
             <Search
-              className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2"
+              className="text-muted-foreground group-focus-within:text-brand pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 transition-colors"
               aria-hidden
             />
             <Input
               id="search"
               type="search"
               placeholder="Name, company, role or where you met"
-              className="pl-9"
+              className="pl-9 transition-shadow"
               value={value.search}
               disabled={disabled}
               onChange={(e) => set('search', e.target.value)}
@@ -58,7 +60,12 @@ export function ContactFilters({
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="priority-filter">Priority</Label>
+          <Label
+            htmlFor="priority-filter"
+            className="text-muted-foreground text-xs font-medium"
+          >
+            Priority
+          </Label>
           <Select
             value={value.priority}
             disabled={disabled}
@@ -86,7 +93,12 @@ export function ContactFilters({
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="sort-field">Sort by</Label>
+          <Label
+            htmlFor="sort-field"
+            className="text-muted-foreground text-xs font-medium"
+          >
+            Sort by
+          </Label>
           <div className="flex gap-2">
             <Select
               value={value.sort}
@@ -122,23 +134,30 @@ export function ContactFilters({
                 set('direction', value.direction === 'asc' ? 'desc' : 'asc')
               }
             >
-              {value.direction === 'asc' ? '↑' : '↓'}
+              <SlidersHorizontal
+                className={`size-4 transition-transform duration-300 ${
+                  value.direction === 'asc' ? 'rotate-180' : ''
+                }`}
+              />
             </Button>
           </div>
         </div>
       </div>
 
       {hasFilters && (
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="text-muted-foreground"
-          onClick={() => onChange({ ...value, search: '', priority: 'all' })}
-        >
-          <X className="size-4" />
-          Clear filters
-        </Button>
+        <div className="border-border/60 animate-fade-in mt-3 flex items-center gap-2 border-t pt-3">
+          <span className="text-muted-foreground text-xs">Filters active</span>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="text-muted-foreground hover:text-foreground h-7 px-2 text-xs"
+            onClick={() => onChange({ ...value, search: '', priority: 'all' })}
+          >
+            <X className="size-3.5" />
+            Clear
+          </Button>
+        </div>
       )}
     </div>
   );

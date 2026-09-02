@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, UserPen, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -122,12 +122,25 @@ export function ContactFormDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{editing ? 'Edit contact' : 'Add contact'}</DialogTitle>
-          <DialogDescription>
-            {editing
-              ? 'Update what you know about this person.'
-              : 'Only a name is required — you can fill in the rest later.'}
-          </DialogDescription>
+          <div className="flex items-start gap-3">
+            <span className="bg-brand-gradient flex size-10 shrink-0 items-center justify-center rounded-xl shadow-sm">
+              {editing ? (
+                <UserPen className="size-5 text-white" aria-hidden />
+              ) : (
+                <UserPlus className="size-5 text-white" aria-hidden />
+              )}
+            </span>
+            <div className="space-y-1">
+              <DialogTitle className="text-base">
+                {editing ? 'Edit contact' : 'Add contact'}
+              </DialogTitle>
+              <DialogDescription className="text-sm leading-relaxed">
+                {editing
+                  ? 'Update what you know about this person.'
+                  : 'Only a name is required — you can fill in the rest later.'}
+              </DialogDescription>
+            </div>
+          </div>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} noValidate className="space-y-4">
@@ -216,7 +229,18 @@ export function ContactFormDialog({
               <SelectContent>
                 {PRIORITIES.map((p) => (
                   <SelectItem key={p} value={p}>
-                    {PRIORITY_LABELS[p]}
+                    <span className="flex items-center gap-2">
+                      <span
+                        className={`size-1.5 rounded-full ${
+                          p === 'high'
+                            ? 'bg-priority-high'
+                            : p === 'medium'
+                              ? 'bg-priority-medium'
+                              : 'bg-priority-low'
+                        }`}
+                      />
+                      {PRIORITY_LABELS[p]}
+                    </span>
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -263,7 +287,7 @@ export function ContactFormDialog({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={saving}>
+            <Button type="submit" disabled={saving} className="min-w-32">
               {saving && <Loader2 className="size-4 animate-spin" />}
               {saving ? 'Saving…' : editing ? 'Save changes' : 'Add contact'}
             </Button>

@@ -4,6 +4,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { LogOut, Plus } from 'lucide-react';
 import { toast } from 'sonner';
+import { BrandWordmark } from '@/components/brand';
+import { ContactAvatar } from '@/components/contact-avatar';
+import { ContactStats } from '@/components/contact-stats';
 import { ContactFilters, type FilterState } from '@/components/contact-filters';
 import { ContactFormDialog } from '@/components/contact-form-dialog';
 import { ContactList } from '@/components/contact-list';
@@ -168,47 +171,60 @@ export default function ContactsPage() {
 
   return (
     <div className="flex min-h-full flex-1 flex-col">
-      <header className="bg-background border-b">
+      <header className="border-border/60 bg-background/80 sticky top-0 z-30 border-b backdrop-blur-md">
         <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-3 px-4 py-3">
-          <div className="min-w-0">
-            <h1 className="truncate text-base font-semibold">
-              Networking Tracker
-            </h1>
-            <p className="text-muted-foreground truncate text-xs">
-              Signed in as {user.email}
-            </p>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleSignOut}
-            disabled={signingOut}
-          >
-            <LogOut className="size-4" />
-            <span className="hidden sm:inline">
-              {signingOut ? 'Signing out…' : 'Sign out'}
+          <BrandWordmark />
+
+          <div className="flex items-center gap-2">
+            <span className="border-border/70 bg-card hidden items-center gap-2 rounded-full border py-1 pr-3 pl-1 sm:flex">
+              <ContactAvatar name={user.name || user.email} className="size-7 text-[11px]" />
+              <span className="text-muted-foreground max-w-[14rem] truncate text-xs">
+                {user.email}
+              </span>
             </span>
-          </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground hover:text-foreground"
+              onClick={handleSignOut}
+              disabled={signingOut}
+            >
+              <LogOut className="size-4" />
+              <span className="hidden sm:inline">
+                {signingOut ? 'Signing out…' : 'Sign out'}
+              </span>
+            </Button>
+          </div>
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-5xl flex-1 space-y-4 px-4 py-6">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h2 className="text-lg font-semibold">Your contacts</h2>
-            <p className="text-muted-foreground text-sm">
+      <main className="mx-auto w-full max-w-5xl flex-1 space-y-5 px-4 py-6 sm:py-8">
+        <div className="flex items-end justify-between gap-3">
+          <div className="animate-rise">
+            <h1 className="text-brand-gradient text-2xl font-semibold tracking-tight sm:text-3xl">
+              Your contacts
+            </h1>
+            <p className="text-muted-foreground mt-1 text-sm">
               {contacts === null
-                ? 'Loading…'
-                : `${contacts.length} ${contacts.length === 1 ? 'contact' : 'contacts'}${
-                    filtered ? ' matching your filters' : ''
-                  }`}
+                ? 'Loading your list…'
+                : contacts.length === 0
+                  ? filtered
+                    ? 'Nothing matches those filters yet.'
+                    : 'Nobody here yet — add the first person you met.'
+                  : `${contacts.length} ${contacts.length === 1 ? 'person' : 'people'}${
+                      filtered ? ' matching your filters' : ' worth staying in touch with'
+                    }.`}
             </p>
           </div>
-          <Button onClick={openCreate}>
-            <Plus className="size-4" />
+          <Button onClick={openCreate} className="group shrink-0 shadow-sm">
+            <Plus className="size-4 transition-transform duration-200 group-hover:rotate-90" />
             <span className="hidden sm:inline">Add contact</span>
           </Button>
         </div>
+
+        {contacts !== null && contacts.length > 0 && (
+          <ContactStats contacts={contacts} filtered={filtered} />
+        )}
 
         <ContactFilters
           value={filters}
@@ -225,7 +241,7 @@ export default function ContactsPage() {
             <EmptyState
               filtered
               title="No contacts match those filters"
-              description="Try a different search term or clear the filters to see everyone."
+              description="Try a different search term, or clear the filters to see everyone on your list."
               action={
                 <Button
                   variant="outline"
@@ -241,10 +257,10 @@ export default function ContactsPage() {
           ) : (
             <EmptyState
               title="No contacts yet"
-              description="Add the first person you want to stay connected with, and they'll show up here."
+              description="Add the first person you want to stay connected with — a name is all you need to start."
               action={
-                <Button onClick={openCreate}>
-                  <Plus className="size-4" />
+                <Button onClick={openCreate} className="group">
+                  <Plus className="size-4 transition-transform duration-200 group-hover:rotate-90" />
                   Add your first contact
                 </Button>
               }

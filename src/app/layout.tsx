@@ -14,9 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Networking Tracker",
+  title: "Networking Tracker — Berkeley",
   description:
-    "A private tracker for the people you want to stay connected with at Berkeley.",
+    "Keep track of the people you meet at Berkeley: who they are, where you met, and what to follow up on.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -25,7 +25,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="bg-muted text-foreground flex min-h-full flex-col">
+      <body className="bg-background text-foreground bg-ambient flex min-h-full flex-col">
         {children}
         <Toaster richColors position="top-center" />
       </body>

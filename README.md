@@ -2,7 +2,7 @@
 
 A private, per-user networking tracker for the people you want to stay connected with at Berkeley. Sign up, and you get your own contact list — name, company, role, where you met, notes, and a high/medium/low priority — that you can search, filter, sort, edit, and delete. Every contact belongs to exactly one account, and that ownership is enforced by Postgres Row Level Security rather than by application code, so a signed-in user physically cannot read or modify anyone else's rows even if they bypass the browser entirely and call the API directly.
 
-**Live app:** _<!-- TODO: paste your Vercel URL here -->_
+**Live app:** <https://networking-tracker-nine.vercel.app>
 
 ---
 
@@ -378,7 +378,7 @@ $ npm run test:rls   # adds the live two-account suite
 
 | Requirement | Where to find it |
 |---|---|
-| Live public URL | Top of this README |
+| Live public URL | <https://networking-tracker-nine.vercel.app> |
 | Sign in / sign out | `docs/screenshots/01-sign-in.png` |
 | Create, edit, delete, refresh | `docs/screenshots/03-contact-list.png`, `04-add-contact.png` |
 | Two accounts, no cross-access | `docs/screenshots/08-two-accounts.png` + `npm run test:rls` |

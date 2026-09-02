@@ -203,7 +203,7 @@ Node.js 20+ and a free [Neon](https://neon.com) account.
 ### 1. Clone and install
 
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/amaynirula-design/networking-tracker.git
 cd networking-tracker
 npm install
 ```
@@ -351,11 +351,11 @@ $ npm test
 
 ## Deployment
 
-1. **Push to GitHub.**
+1. **Push to GitHub.** Already done — the repository lives at
+   <https://github.com/amaynirula-design/networking-tracker>.
 
    ```bash
-   git remote add origin https://github.com/<you>/<repo>.git
-   git push -u origin main
+   git push origin main
    ```
 
 2. **Import into Vercel** — New Project → import the repo. Framework preset is detected as Next.js; no build settings need changing.

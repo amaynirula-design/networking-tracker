@@ -124,11 +124,14 @@
   --gradient-to: oklch(0.455 0.105 246);
 
   /* Priority scale — semantic, and each keeps a text-contrast partner. */
-  --priority-high: oklch(0.56 0.185 25);
+  /* Lightness here is set by contrast, not taste: these sit on their own tinted
+     backgrounds at 12px, so each needs >= 4.5:1 to clear WCAG AA. Measured in
+     the browser rather than eyeballed. */
+  --priority-high: oklch(0.505 0.19 25);
   --priority-high-bg: oklch(0.965 0.032 30);
-  --priority-medium: oklch(0.60 0.125 70);
+  --priority-medium: oklch(0.475 0.115 70);
   --priority-medium-bg: oklch(0.968 0.038 85);
-  --priority-low: oklch(0.52 0.055 235);
+  --priority-low: oklch(0.485 0.055 235);
   --priority-low-bg: oklch(0.962 0.014 240);
 
   --chart-1: oklch(0.36 0.098 254);

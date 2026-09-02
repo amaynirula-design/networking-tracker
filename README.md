@@ -1,36 +1,339 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Networking Tracker
 
-## Getting Started
+A private, per-user networking tracker for the people you want to stay connected with at Berkeley. Sign up, and you get your own contact list — name, company, role, where you met, notes, and a high/medium/low priority — that you can search, filter, sort, edit, and delete. Every contact belongs to exactly one account, and that ownership is enforced by Postgres Row Level Security rather than by application code, so a signed-in user physically cannot read or modify anyone else's rows even if they bypass the browser entirely and call the API directly.
 
-First, run the development server:
+**Live app:** _<!-- TODO: paste your Vercel URL here -->_
+
+---
+
+## Table of contents
+
+- [Features](#features)
+- [Screenshots](#screenshots)
+- [Technology stack](#technology-stack)
+- [Architecture](#architecture)
+- [Database schema](#database-schema)
+- [Authentication and RLS ownership](#authentication-and-rls-ownership)
+- [Local setup](#local-setup)
+- [Environment variables](#environment-variables)
+- [Testing](#testing)
+- [Deployment](#deployment)
+- [Grading evidence](#grading-evidence)
+- [Known limitations](#known-limitations-and-what-id-do-next)
+
+---
+
+## Features
+
+- **Email + password accounts** via Neon Managed Better Auth — sign up, sign in, sign out.
+- **Private contact list** — every user sees only their own contacts.
+- **Full CRUD** — add, view, edit, and delete contacts, with a confirmation step before deleting.
+- **Search** across name, company, role, and where you met, debounced and executed in Postgres.
+- **Filter** by priority; **sort** by name, company, priority, or date added, ascending or descending.
+- **Priority sorts by urgency, not alphabet** — a generated `priority_rank` column means "high" sorts above "medium" above "low" instead of the meaningless alphabetical high/low/medium.
+- **Persistent** — data lives in Neon Postgres and survives refreshes, new tabs, and new devices.
+- **Understandable states** — distinct loading, empty, "no results for these filters", success, and error states.
+- **Responsive** — a real table on desktop, stacked cards on mobile.
+- **Validated twice** — instant inline errors in the browser, and authoritative CHECK constraints in the database.
+
+## Screenshots
+
+> Replace these with your own captures. Files live in `docs/screenshots/`.
+
+| | |
+|---|---|
+| Sign in | ![Sign in](docs/screenshots/01-sign-in.png) |
+| Empty state | ![Empty state](docs/screenshots/02-empty-state.png) |
+| Contact list | ![Contact list](docs/screenshots/03-contact-list.png) |
+| Add / edit contact | ![Add contact](docs/screenshots/04-add-contact.png) |
+| Validation failure | ![Validation error](docs/screenshots/05-validation-error.png) |
+| Sort and filter | ![Filtering](docs/screenshots/06-filter-sort.png) |
+| Mobile layout | ![Mobile](docs/screenshots/07-mobile.png) |
+| Two-account privacy test | ![Two accounts](docs/screenshots/08-two-accounts.png) |
+
+## Technology stack
+
+| Layer | Choice | Why |
+|---|---|---|
+| Framework | **Next.js 16** (App Router, TypeScript) | Deploys to Vercel with no configuration, and the App Router keeps routing and layout conventions simple. Every page here is a static shell that fetches its data client-side. |
+| Styling | **Tailwind CSS v4 + shadcn/ui** | shadcn/ui gives accessible, unstyled-by-default primitives (dialog, select, table, alert dialog) that I own in-repo rather than a black-box dependency. Satisfies the "design or component system" requirement and made the responsive pass straightforward. |
+| Auth | **Neon Managed Better Auth** | Managed, and it stores identity in the same Postgres database as the data, so `auth.user_id()` is available directly inside RLS policies with no token plumbing of my own. |
+| Data access | **Neon Data API** via `@neondatabase/neon-js` | A PostgREST interface over Postgres. The SDK attaches the signed-in user's JWT to every request automatically, which is what makes RLS work end to end. |
+| Database | **Neon Postgres** | Serverless Postgres with branching. RLS is the security boundary of this app. |
+| Validation | **Zod** in the browser, **CHECK constraints** in Postgres | Zod for a fast, clear error message; constraints because they cannot be bypassed. |
+| Tests | **Vitest** | Fast, no config beyond a path alias, and `describe.skipIf` cleanly separates unit tests from the credentialed integration suite. |
+| Hosting | **Vercel** | First-class Next.js support and instant preview deploys. |
+
+## Architecture
+
+```
+┌──────────────────────────────────────────────┐
+│  Browser — Next.js (static shell + React)    │
+│                                              │
+│  components/         presentation only       │
+│        │                                     │
+│  lib/contacts/schema.ts   Zod validation ────┼── shared, framework-free,
+│  lib/contacts/query.ts    sort/filter logic  │   unit-tested in isolation
+│        │                                     │
+│  lib/contacts/api.ts      CRUD calls         │
+│        │                                     │
+│  lib/neon.ts   createClient({ auth, dataApi })│
+└────────┼─────────────────────────────────────┘
+         │  HTTPS, Authorization: Bearer <JWT>
+         ▼
+┌──────────────────────────────────────────────┐
+│  Neon Managed Better Auth   →  issues the JWT│
+│  Neon Data API (PostgREST)  →  validates it  │
+└────────┼─────────────────────────────────────┘
+         │  SET ROLE authenticated; auth.user_id() = JWT `sub`
+         ▼
+┌──────────────────────────────────────────────┐
+│  Neon Postgres — THE TRUSTED BACKEND         │
+│                                              │
+│  • RLS policies decide which rows you see    │
+│  • CHECK constraints decide what is valid    │
+│  • user_id DEFAULT auth.user_id() sets owner │
+└──────────────────────────────────────────────┘
+```
+
+### Where the frontend ends and the backend begins
+
+The browser talks to the Neon Data API directly, so **nothing enforced in React can be trusted**. Anyone can open the devtools, read the two public URLs, and issue their own requests with their own JWT. The app is designed around that fact:
+
+- **Frontend** (`src/app`, `src/components`) is presentation and interaction only. It renders state and collects input.
+- **Domain layer** (`src/lib/contacts/schema.ts`, `src/lib/contacts/query.ts`) is pure TypeScript — it imports neither React nor the Neon SDK. It defines what a valid contact is and how sorting and filtering are expressed. Because it is decoupled, it is unit-tested directly with no mocks, no DOM, and no network.
+- **Backend** is Postgres. Ownership (`user_id DEFAULT auth.user_id()`, four RLS policies) and validity (CHECK constraints) are enforced there. The Zod schema in the domain layer is a *mirror* of those constraints for fast feedback, not a substitute for them.
+
+The integration test proves this split is real: it bypasses the app's Zod schema entirely, posts an invalid priority straight to the Data API, and the database rejects it.
+
+### Request flow for "add a contact"
+
+1. User submits the dialog. `parseContactInput` validates locally; if it fails, inline errors render and nothing is sent.
+2. `createContact` posts to the Data API. **`user_id` is deliberately not included in the payload.**
+3. The SDK attaches the user's JWT. The Data API verifies its signature against Neon's JWKS and assumes the `authenticated` Postgres role.
+4. Postgres fills `user_id` from `DEFAULT auth.user_id()` — the JWT's `sub` claim. The client cannot choose an owner.
+5. The `contacts_insert_own` policy's `WITH CHECK` confirms `auth.user_id() = user_id`, and the CHECK constraints confirm the values are valid.
+6. The row is returned and the list refreshes.
+
+## Database schema
+
+Full DDL, including policies and grants: [`db/schema.sql`](db/schema.sql).
+
+### `public.contacts`
+
+| Column | Type | Constraints | Notes |
+|---|---|---|---|
+| `id` | `uuid` | PK, `default gen_random_uuid()` | Surrogate key. |
+| `user_id` | `text` | **`not null`**, **`default auth.user_id()`** | The owner. Comes from the JWT `sub` claim, never from the client. `NOT NULL` means an unauthenticated caller cannot insert at all, because `auth.user_id()` is `NULL` for them. |
+| `name` | `text` | `not null`, non-blank, ≤ 120 chars | The only required user-supplied field. |
+| `company` | `text` | nullable, ≤ 120 chars | |
+| `role` | `text` | nullable, ≤ 120 chars | |
+| `met_at` | `text` | nullable, ≤ 160 chars | Where you met them. |
+| `notes` | `text` | nullable, ≤ 2000 chars | |
+| `priority` | `text` | `not null`, `default 'medium'`, **`check (priority in ('high','medium','low'))`** | Only these three values are accepted, at the database level. |
+| `priority_rank` | `int` | `generated always as (…) stored` | 1/2/3 for high/medium/low, so the database can sort by urgency. |
+| `created_at` | `timestamptz` | `not null`, `default now()` | |
+| `updated_at` | `timestamptz` | `not null`, `default now()` | Maintained by the `contacts_set_updated_at` trigger. |
+
+Named constraints: `contacts_name_not_blank`, `contacts_name_len`, `contacts_company_len`, `contacts_role_len`, `contacts_met_at_len`, `contacts_notes_len`, `contacts_priority_valid`, `contacts_user_not_blank`.
+
+Indexes: `contacts_user_id_idx (user_id)` and `contacts_user_created_idx (user_id, created_at desc)` — every query is scoped to one user by RLS, so those are the access paths that matter.
+
+## Authentication and RLS ownership
+
+Neon Managed Better Auth issues a JWT whose `sub` claim is the user's id. The Data API validates that signature and exposes the claim to Postgres as **`auth.user_id()`**, which returns the `sub` as `text`. That single function is the entire ownership rule.
+
+RLS is enabled *and* forced on the table:
+
+```sql
+alter table public.contacts enable row level security;
+alter table public.contacts force  row level security;
+```
+
+Four separate policies, one per operation, each scoped to `authenticated`:
+
+```sql
+create policy contacts_select_own on public.contacts
+  for select to authenticated using (auth.user_id() = user_id);
+
+create policy contacts_insert_own on public.contacts
+  for insert to authenticated with check (auth.user_id() = user_id);
+
+create policy contacts_update_own on public.contacts
+  for update to authenticated
+  using      (auth.user_id() = user_id)   -- which rows you may edit
+  with check (auth.user_id() = user_id);  -- what they may become
+
+create policy contacts_delete_own on public.contacts
+  for delete to authenticated using (auth.user_id() = user_id);
+```
+
+**`USING` vs `WITH CHECK` is the important distinction.** `USING` filters which existing rows an operation can even see — this is why another user's rows are invisible to `SELECT` and simply don't match an `UPDATE` or `DELETE`. `WITH CHECK` validates the row *after* the write — this is what stops you rewriting your own row so that it belongs to somebody else. Without it, `update contacts set user_id = '<someone else>'` would succeed. Both clauses are present on `UPDATE` for exactly that reason, and the integration test asserts the transfer attempt fails with Postgres error `42501`.
+
+Grants go to `authenticated` only:
+
+```sql
+grant usage on schema public to authenticated;
+grant select, insert, update, delete on public.contacts to authenticated;
+revoke all on public.contacts from anonymous;   -- signed-out visitors get nothing
+```
+
+The two `NEXT_PUBLIC_` URLs are public by design — they ship in the JavaScript bundle. **Security does not come from hiding them; it comes from RLS.** There is no Postgres connection string anywhere in the frontend, and the app does not need one at runtime.
+
+## Local setup
+
+### Prerequisites
+
+Node.js 20+ and a free [Neon](https://neon.com) account.
+
+### 1. Clone and install
+
+```bash
+git clone <your-repo-url>
+cd networking-tracker
+npm install
+```
+
+### 2. Create the Neon project
+
+1. In the **Neon Console**, create a project. **Choose an AWS region** — Managed Better Auth is not available on Azure.
+2. Go to your branch → **Auth** → enable **Managed Better Auth**. Copy the **Auth URL** (looks like `https://ep-xxx.<region>.aws.neon.tech/neondb/auth`).
+3. Go to **Database → Data API**. Set the auth provider to **Managed Better Auth**, tick **Grant public schema access**, and click **Enable Data API**. Copy the **Data API URL** (looks like `https://ep-xxx.<region>.aws.neon.tech/neondb/rest/v1`).
+
+> Enable the Data API *before* running the SQL — enabling it is what creates the `authenticated` role that the policies and grants reference.
+
+### 3. Create the schema
+
+Open the **SQL Editor** in the Neon Console, paste the contents of [`db/schema.sql`](db/schema.sql), and run it. It is safe to re-run.
+
+Verify it took effect:
+
+```sql
+select relrowsecurity, relforcerowsecurity from pg_class where relname = 'contacts';
+select policyname, cmd from pg_policies where tablename = 'contacts' order by cmd;
+```
+
+You should see row security enabled and exactly four policies, one each for `SELECT`, `INSERT`, `UPDATE`, and `DELETE`.
+
+### 4. Configure the environment
+
+```bash
+cp .env.example .env.local
+```
+
+Fill in the two URLs from step 2. `.env.local` is gitignored.
+
+### 5. Run
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open <http://localhost:3000>, create an account, and add a contact.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Environment variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+See [`.env.example`](.env.example) for the committed template — placeholder values only.
 
-## Learn More
+| Variable | Scope | Required | Purpose |
+|---|---|---|---|
+| `NEXT_PUBLIC_NEON_AUTH_URL` | Public | Yes | Managed Better Auth endpoint. Ships to the browser by design. |
+| `NEXT_PUBLIC_NEON_DATA_API_URL` | Public | Yes | Neon Data API endpoint. Ships to the browser by design; protected by RLS. |
+| `DATABASE_URL` | **Server-only** | No | Postgres connection string. Not used at runtime — the app reaches the database through the Data API. Never prefix with `NEXT_PUBLIC_`. |
+| `NEON_AUTH_BASE_URL` | **Server-only** | No | Only needed if you add server-side Better Auth routes. This build does not. |
+| `NEON_AUTH_COOKIE_SECRET` | **Server-only** | No | As above. Generate with `openssl rand -base64 32`. |
+| `TEST_USER_A_EMAIL` / `TEST_USER_A_PASSWORD` | **Server-only** | No | Credentials for the two-account RLS test. |
+| `TEST_USER_B_EMAIL` / `TEST_USER_B_PASSWORD` | **Server-only** | No | As above. |
 
-To learn more about Next.js, take a look at the following resources:
+No secret value is committed anywhere in this repository or its history.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Testing
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+npm test          # unit tests — no network, no credentials needed
+npm run test:rls  # two-account RLS test — needs a live Neon project
+```
 
-## Deploy on Vercel
+### `npm test` — 35 unit tests, always runnable
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Pure tests over the domain layer. A grader can clone the repo, `npm install`, and run these immediately.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+**`tests/schema.test.ts`** — validation. Asserts that an empty name, a whitespace-only name, a missing name, and an over-length name are all rejected with a clear message; that all three valid priorities are accepted; that invalid priorities (`urgent`, `HIGH`, `'medium '`, `''`, `null`, `undefined`, `1`) are rejected and never silently coerced to a default; that blank optional fields are stored as `NULL` rather than `''`; and that multiple invalid fields are all reported at once.
+
+**`tests/query.test.ts`** — sorting and filtering. Asserts that unknown sort fields and priorities are ignored rather than trusted; that `priority` maps to the generated `priority_rank` column so ordering is by urgency; and that search terms are escaped for the PostgREST filter grammar — a crafted term like `x,user_id.neq.zzz` stays inside one quoted clause instead of injecting a second condition.
+
+### `npm run test:rls` — the two-account privacy proof
+
+Skipped automatically unless credentials are present, so `npm test` stays green in a fresh clone. To run it, create two accounts through the app's own sign-up page and add their credentials to `.env.local`.
+
+It signs both users in over HTTPS, exchanges each session for a real JWT, and drives the **live Data API** — the same endpoint the browser uses. It asserts that:
+
+1. `user_id` is populated from `auth.user_id()`, not from the client.
+2. An **unfiltered** `select *` as User B does not return User A's row. (No `.eq()` — RLS alone does the filtering.)
+3. Asking for A's row by id as B returns nothing.
+4. B's `UPDATE` of A's row changes zero rows, and A's data is unchanged afterwards.
+5. B's `DELETE` of A's row removes nothing, and the row still exists.
+6. B inserting a row with `user_id` set to A's id is **rejected** with Postgres `42501` — the `INSERT` policy's `WITH CHECK`.
+7. B rewriting their *own* row's `user_id` to A's id is **rejected** with `42501` — the `UPDATE` policy's `WITH CHECK`.
+8. An invalid priority sent **straight to the Data API, bypassing Zod entirely**, is rejected by the database with `23514` on `contacts_priority_valid`.
+9. A blank name, likewise bypassing the client, is rejected with `23514` on `contacts_name_not_blank`.
+10. A request with no token cannot read contacts.
+
+Items 6–9 are the ones worth reading closely: they prove that the security and validation guarantees hold against a client that ignores the app's own code.
+
+### Test output
+
+```text
+<!-- TODO: paste the output of `npm test` here -->
+```
+
+## Deployment
+
+1. **Push to GitHub.**
+
+   ```bash
+   git remote add origin https://github.com/<you>/<repo>.git
+   git push -u origin main
+   ```
+
+2. **Import into Vercel** — New Project → import the repo. Framework preset is detected as Next.js; no build settings need changing.
+
+3. **Add the environment variables** in Vercel → Settings → Environment Variables, for Production (and Preview if you want previews to work):
+
+   - `NEXT_PUBLIC_NEON_AUTH_URL`
+   - `NEXT_PUBLIC_NEON_DATA_API_URL`
+
+   Do **not** add `DATABASE_URL`; the app does not use it at runtime.
+
+4. **Add the Vercel domain to Neon Auth's trusted origins.** In the Neon Console → Auth → trusted origins, add `https://<your-app>.vercel.app`. **Sign-in will fail without this step**, and the failure is easy to misread as a credentials problem.
+
+5. **Redeploy** so the environment variables are baked into the client bundle. `NEXT_PUBLIC_*` values are inlined at build time, so adding them after a build has no effect until you rebuild.
+
+6. **Verify in a private window** — sign up, add a contact, refresh, edit, delete, sign out. Then repeat the two-account privacy test against the live URL.
+
+## Grading evidence
+
+| Requirement | Where to find it |
+|---|---|
+| Live public URL | Top of this README |
+| Sign in / sign out | `docs/screenshots/01-sign-in.png` |
+| Create, edit, delete, refresh | `docs/screenshots/03-contact-list.png`, `04-add-contact.png` |
+| Two accounts, no cross-access | `docs/screenshots/08-two-accounts.png` + `npm run test:rls` |
+| Invalid input fails safely | `docs/screenshots/05-validation-error.png` |
+| Automated test passing | [Test output](#test-output) above |
+| `user_id text default auth.user_id()`, not null | [`db/schema.sql`](db/schema.sql), [schema table](#database-schema) |
+| RLS enabled | [`db/schema.sql`](db/schema.sql) |
+| Four separate policies | [Auth and RLS](#authentication-and-rls-ownership) |
+| Update cannot reassign ownership | `WITH CHECK` on `contacts_update_own`; test #7 |
+| No committed secrets | `.gitignore` excludes `.env*` but permits `.env.example`; no secret in history |
+
+## Known limitations and what I'd do next
+
+- **No pagination.** Every contact is fetched in one request. Fine for a personal list of tens or hundreds; at thousands it would need `.range()` and infinite scroll. The index on `(user_id, created_at desc)` is already there to support it.
+- **No optimistic updates.** Every mutation waits for a round trip and then refetches. Simple and always consistent, but it feels slower than it needs to. A library like TanStack Query would fix this and add caching.
+- **Email/password only.** Managed Better Auth also supports OAuth; adding Google sign-in would be a small change to the auth form.
+- **No password reset flow.** A user who forgets their password currently has no path to recovery.
+- **Search is `ILIKE`-based**, so it matches substrings but not typos or word stems. Postgres full-text search or a trigram index would be the next step.
+- **The RLS test needs two pre-created accounts** rather than provisioning and tearing them down itself. Programmatic sign-up would make it fully self-contained and CI-runnable.
+- **No rate limiting** on the Data API beyond what Neon provides. A determined authenticated user could hammer their own endpoints.
+- **Accessibility** has had a pass (labels, `aria-invalid`, `role="alert"`, keyboard-navigable dialogs via shadcn primitives) but not a full screen-reader audit.
